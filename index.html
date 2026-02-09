@@ -1,307 +1,316 @@
-import React, { useState, useMemo } from 'react';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, AreaChart, Area } from 'recharts';
-import { TrendingUp, DollarSign, ArrowUpRight, ShieldCheck, Wallet, Calculator, ArrowRightLeft, Percent, Menu } from 'lucide-react';
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Equity Yield Modeller</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- React and ReactDOM -->
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <!-- Babel for JSX -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <!-- Recharts -->
+    <script src="https://unpkg.com/recharts/umd/Recharts.js"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; }
+        .scrollbar-hide::-webkit-scrollbar { display: none; }
+        .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+    </style>
+</head>
+<body class="bg-slate-50">
+    <div id="root"></div>
 
-const App = () => {
-  // Calculator State
-  const [deposit, setDeposit] = useState(200000000); // Starting at £200M
-  const interestRate = 0.04; // Fixed at 4%
-  const [discountRate, setDiscountRate] = useState(0.20); // 20% applied to ALL tranches
+    <script type="text/babel">
+        const { useState, useMemo, useEffect } = React;
+        const { 
+            AreaChart, Area, LineChart, Line, XAxis, YAxis, 
+            CartesianGrid, Tooltip, Legend, ResponsiveContainer 
+        } = Recharts;
 
-  // Fixed Round Valuations and Base PPS from Cap Table
-  const baseTranches = [
-    { year: 1, label: 'Balance 1', valuation: 272002132, pps: 58.40 },
-    { year: 2, label: 'Balance 2', valuation: 460109878, pps: 96.64 },
-    { year: 3, label: 'Balance 3', valuation: 689739111, pps: 142.77 },
-    { year: 4, label: 'Balance 4', valuation: 984868536, pps: 201.79 },
-    { year: 5, label: 'Balance 5', valuation: 1310162166, pps: 266.39 },
-  ];
-
-  const dashboardData = useMemo(() => {
-    let cumulativeShares = 0;
-    const yearlyInterest = deposit * interestRate;
-    
-    return baseTranches.map((t, idx) => {
-      const effectivePPS = t.pps * (1 - discountRate);
-      const sharesPurchasedFromInterest = yearlyInterest / effectivePPS;
-      cumulativeShares += sharesPurchasedFromInterest;
-      
-      const equityValue = cumulativeShares * t.pps;
-      const totalPortfolioValue = deposit + equityValue;
-      const cashOnlyValue = deposit + (yearlyInterest * (idx + 1));
-      
-      return {
-        ...t,
-        yearlyInterest,
-        normalPPS: t.pps,
-        effectivePPS,
-        sharesPurchasedFromInterest,
-        cumulativeShares,
-        equityValue,
-        totalPortfolioValue,
-        cashOnlyValue,
-        yieldMultiple: (equityValue / (yearlyInterest * (idx + 1))).toFixed(2),
-        roi: ((totalPortfolioValue - deposit) / deposit * 100).toFixed(1)
-      };
-    });
-  }, [deposit, discountRate]);
-
-  const finalMetrics = dashboardData[dashboardData.length - 1];
-
-  const formatCurrency = (val) => 
-    new Intl.NumberFormat('en-GB', { 
-      style: 'currency', 
-      currency: 'GBP', 
-      maximumFractionDigits: 0 
-    }).format(val);
-
-  return (
-    <div className="min-h-screen bg-slate-50 p-4 sm:p-6 md:p-8 font-sans text-slate-900">
-      <div className="max-w-7xl mx-auto">
-        
-        {/* Header Section */}
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 mb-8">
-          <div>
-            <div className="flex items-center gap-2 mb-2">
-              <span className="bg-blue-100 text-blue-700 text-[10px] font-bold px-2 py-0.5 rounded uppercase tracking-wider">
-                Annual 20% Discount Strategy
-              </span>
-            </div>
-            <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 flex items-center gap-2">
-              <Calculator className="text-blue-600 shrink-0" size={28} />
-              Equity Yield Modeller
-            </h1>
-            <p className="text-slate-500 text-sm mt-1">
-              Modelling {formatCurrency(deposit)} Principal + Annual Discounted Interest Conversion
-            </p>
-          </div>
-          
-          <div className="grid grid-cols-2 sm:flex items-center gap-3 sm:gap-6 bg-white px-4 py-3 sm:px-6 sm:py-4 rounded-2xl shadow-sm border border-slate-200">
-            <div className="text-left sm:text-right">
-              <p className="text-[10px] font-bold text-slate-400 uppercase">Total Equity (Yr 5)</p>
-              <p className="text-lg sm:text-xl font-bold text-emerald-600 truncate">{formatCurrency(finalMetrics.equityValue)}</p>
-            </div>
-            <div className="hidden sm:block h-8 w-px bg-slate-100" />
-            <div className="text-left sm:text-right">
-              <p className="text-[10px] font-bold text-slate-400 uppercase">Asset Multiple</p>
-              <p className="text-lg sm:text-xl font-bold text-blue-600">{((deposit + finalMetrics.equityValue) / deposit).toFixed(2)}x</p>
-            </div>
-          </div>
-        </div>
-
-        {/* Main Dashboard Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 mb-8">
-          
-          {/* Controls - Sidebar on Large, Top on Mobile */}
-          <div className="lg:col-span-1 space-y-6">
-            <div className="bg-white p-5 sm:p-6 rounded-2xl shadow-sm border border-slate-200 h-full">
-              <h3 className="text-sm font-bold text-slate-800 mb-6 flex items-center gap-2 border-b border-slate-50 pb-4">
-                <Wallet size={16} className="text-blue-500" />
-                Capital Parameters
-              </h3>
-              
-              <div className="space-y-8">
-                <div>
-                  <div className="flex justify-between items-center mb-2">
-                    <label className="text-xs font-bold text-slate-500 uppercase">
-                      Retained Deposit
-                    </label>
-                    <span className="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded">£200M - £500M</span>
-                  </div>
-                  <input 
-                    type="range" min="200000000" max="500000000" step="25000000"
-                    value={deposit}
-                    onChange={(e) => setDeposit(Number(e.target.value))}
-                    className="w-full h-2 bg-slate-100 rounded-lg appearance-none cursor-pointer accent-blue-600"
-                  />
-                  <div className="mt-3 text-xl font-bold text-slate-900">{formatCurrency(deposit)}</div>
-                </div>
-
-                <div className="p-4 bg-blue-50/50 rounded-xl border border-blue-100">
-                  <label className="text-xs font-bold text-blue-600 uppercase block mb-1">
-                    Annual Interest Yield
-                  </label>
-                  <div className="text-xl font-bold text-slate-900">4.0%</div>
-                  <p className="text-[10px] text-blue-500 mt-1 uppercase font-bold tracking-tighter">
-                    = {formatCurrency(deposit * interestRate)} / Year
-                  </p>
-                </div>
-
-                <div>
-                  <label className="text-xs font-bold text-slate-500 uppercase block mb-3">
-                    Ongoing Entry Discount
-                  </label>
-                  <div className="flex items-center gap-2">
-                    {[0, 0.1, 0.2].map(d => (
-                      <button 
-                        key={d}
-                        onClick={() => setDiscountRate(d)}
-                        className={`flex-1 py-2.5 text-xs font-bold rounded-xl border transition-all ${discountRate === d ? 'bg-blue-600 text-white border-blue-600 shadow-md' : 'bg-white text-slate-600 border-slate-200 hover:border-blue-300'}`}
-                      >{d * 100}%</button>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Stats & Charts */}
-          <div className="lg:col-span-3 space-y-6">
+        // Custom Icon Component to handle Lucide in CDN
+        const Icon = ({ name, size = 20, className = "" }) => {
+            const [iconSvg, setIconSvg] = useState("");
             
-            {/* Quick Stats Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              <StatCard 
-                title="Portfolio Total Value" 
-                value={formatCurrency(finalMetrics.totalPortfolioValue)}
-                subValue={`Principal Protected + Yield Gain`}
-                icon={<ShieldCheck className="text-blue-500" />}
-              />
-              <StatCard 
-                title="Discounted Equity Gain" 
-                value={formatCurrency(finalMetrics.equityValue)}
-                subValue={`From ${formatCurrency(deposit * interestRate * 5)} interest`}
-                icon={<TrendingUp className="text-emerald-500" />}
-              />
-              <StatCard 
-                title="Yield Multiplier" 
-                value={`${finalMetrics.yieldMultiple}x`}
-                subValue="Alpha over standard interest"
-                icon={<ArrowUpRight className="text-purple-500" />}
-              />
-            </div>
+            useEffect(() => {
+                if (window.lucide) {
+                    const icon = window.lucide.icons[name];
+                    if (icon) {
+                        const svg = window.lucide.createIcons({
+                            icons: { [name]: icon },
+                            attrs: { stroke: "currentColor", "stroke-width": 2, size: size }
+                        });
+                    }
+                }
+            }, [name, size]);
 
-            {/* Growth Chart */}
-            <div className="bg-white p-5 sm:p-6 rounded-2xl shadow-sm border border-slate-200">
-              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-8 gap-4">
-                <h3 className="text-lg font-bold flex items-center gap-2">
-                  <DollarSign className="text-emerald-500" />
-                  Cumulative Growth Comparison
-                </h3>
-                <div className="flex flex-wrap gap-4 text-[10px] uppercase font-bold text-slate-400">
-                  <div className="flex items-center gap-1.5"><div className="w-2 h-2 bg-blue-500 rounded-full"></div> Total Portfolio</div>
-                  <div className="flex items-center gap-1.5"><div className="w-2 h-2 bg-slate-400 rounded-full border border-dashed border-white"></div> Cash Base</div>
+            return <i data-lucide={name} className={className} style={{ width: size, height: size }}></i>;
+        };
+
+        const StatCard = ({ title, value, subValue, iconName, iconColorClass }) => (
+            <div className="bg-white p-5 sm:p-6 rounded-2xl shadow-sm border border-slate-200 hover:border-blue-200 transition-colors">
+                <div className="flex justify-between items-start mb-4">
+                    <div className={`p-2.5 bg-slate-50 rounded-xl ${iconColorClass}`}>
+                        <i data-lucide={iconName} size={20}></i>
+                    </div>
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{title}</span>
                 </div>
-              </div>
-              <div className="h-[300px] sm:h-[400px] w-full">
-                <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={dashboardData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                    <defs>
-                      <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.1}/>
-                        <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                    <XAxis 
-                      dataKey="label" 
-                      axisLine={false} 
-                      tickLine={false} 
-                      tick={{ fontSize: 10, fontWeight: 600, fill: '#94a3b8' }} 
-                      dy={10}
-                    />
-                    <YAxis 
-                      axisLine={false} 
-                      tickLine={false} 
-                      tick={{ fontSize: 10, fontWeight: 600, fill: '#94a3b8' }}
-                      tickFormatter={(val) => `£${(val/1000000).toFixed(0)}M`}
-                    />
-                    <Tooltip 
-                      contentStyle={{ 
-                        borderRadius: '16px', 
-                        border: 'none', 
-                        boxShadow: '0 10px 25px -5px rgba(0,0,0,0.1)',
-                        padding: '12px'
-                      }}
-                      itemStyle={{ fontSize: '12px', fontWeight: 'bold' }}
-                      formatter={(value) => [formatCurrency(value), '']}
-                    />
-                    <Area 
-                      name="Total Portfolio" 
-                      dataKey="totalPortfolioValue" 
-                      stroke="#3b82f6" 
-                      strokeWidth={3} 
-                      fill="url(#colorValue)" 
-                      animationDuration={1500}
-                    />
-                    <Line 
-                      name="Cumulative Cash Interest" 
-                      dataKey="cashOnlyValue" 
-                      stroke="#94a3b8" 
-                      strokeDasharray="5 5" 
-                      strokeWidth={2} 
-                      dot={false} 
-                    />
-                  </AreaChart>
-                </ResponsiveContainer>
-              </div>
+                <div className="text-xl sm:text-2xl font-bold text-slate-900 mb-1">{value}</div>
+                <p className="text-[11px] text-slate-500 font-medium">{subValue}</p>
             </div>
-          </div>
-        </div>
+        );
 
-        {/* Detailed Table Section */}
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden mb-8">
-          <div className="p-5 sm:p-6 border-b border-slate-100 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-            <h3 className="font-bold flex items-center gap-2 text-slate-800">
-              <ArrowRightLeft size={18} className="text-blue-500 shrink-0" />
-              Adjusted PPS Conversion Detail
-            </h3>
-            <div className="bg-blue-50 px-3 py-1.5 rounded-lg text-[10px] font-bold text-blue-700 flex items-center gap-2">
-              <Percent size={12} />
-              {(discountRate * 100)}% Conversion Discount Applied
-            </div>
-          </div>
-          <div className="overflow-x-auto scrollbar-hide">
-            <table className="w-full text-left text-sm min-w-[700px]">
-              <thead className="bg-slate-50/50">
-                <tr>
-                  <th className="p-4 font-bold text-slate-400 uppercase text-[10px] tracking-wider">Round</th>
-                  <th className="p-4 font-bold text-slate-400 uppercase text-[10px] tracking-wider">Interest Deployed</th>
-                  <th className="p-4 font-bold text-slate-400 uppercase text-[10px] tracking-wider">Normal PPS</th>
-                  <th className="p-4 font-bold text-slate-400 uppercase text-[10px] tracking-wider">Adjusted PPS</th>
-                  <th className="p-4 font-bold text-slate-400 uppercase text-[10px] tracking-wider">Shares Added</th>
-                  <th className="p-4 font-bold text-slate-400 uppercase text-[10px] tracking-wider text-right">Cumulative Equity</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {dashboardData.map((row, i) => (
-                  <tr key={i} className="hover:bg-slate-50/50 transition-colors group">
-                    <td className="p-4 font-semibold text-slate-700">{row.label}</td>
-                    <td className="p-4 text-slate-600">{formatCurrency(row.yearlyInterest)}</td>
-                    <td className="p-4 font-mono text-slate-400 text-xs">£{row.normalPPS.toFixed(2)}</td>
-                    <td className="p-4">
-                      <div className="flex items-center gap-2">
-                        <span className="font-bold text-blue-600">
-                          £{row.effectivePPS.toFixed(2)}
-                        </span>
-                        <span className="hidden sm:inline-block text-[8px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded font-bold uppercase">Entry</span>
-                      </div>
-                    </td>
-                    <td className="p-4 font-medium text-slate-600">{Math.round(row.sharesPurchasedFromInterest).toLocaleString()}</td>
-                    <td className="p-4 text-right font-bold text-emerald-600">{formatCurrency(row.equityValue)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          <div className="bg-slate-50/30 p-4 border-t border-slate-100 sm:hidden">
-            <p className="text-[10px] text-slate-400 text-center italic">Swipe table horizontally to see full metrics</p>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-};
+        const App = () => {
+            const [deposit, setDeposit] = useState(200000000);
+            const interestRate = 0.04;
+            const [discountRate, setDiscountRate] = useState(0.20);
 
-// Sub-component for Statistic Cards
-const StatCard = ({ title, value, subValue, icon }) => (
-  <div className="bg-white p-5 sm:p-6 rounded-2xl shadow-sm border border-slate-200 hover:border-blue-200 transition-colors">
-    <div className="flex justify-between items-start mb-4">
-      <div className="p-2.5 bg-slate-50 rounded-xl group-hover:bg-blue-50 transition-colors">{icon}</div>
-      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{title}</span>
-    </div>
-    <div className="text-xl sm:text-2xl font-bold text-slate-900 mb-1">{value}</div>
-    <p className="text-[11px] text-slate-500 font-medium">{subValue}</p>
-  </div>
-);
+            useEffect(() => {
+                if (window.lucide) window.lucide.createIcons();
+            }, [deposit, discountRate]);
 
-export default App;
+            const baseTranches = [
+                { year: 1, label: 'Balance 1', valuation: 272002132, pps: 58.40 },
+                { year: 2, label: 'Balance 2', valuation: 460109878, pps: 96.64 },
+                { year: 3, label: 'Balance 3', valuation: 689739111, pps: 142.77 },
+                { year: 4, label: 'Balance 4', valuation: 984868536, pps: 201.79 },
+                { year: 5, label: 'Balance 5', valuation: 1310162166, pps: 266.39 },
+            ];
+
+            const dashboardData = useMemo(() => {
+                let cumulativeShares = 0;
+                const yearlyInterest = deposit * interestRate;
+                
+                return baseTranches.map((t, idx) => {
+                    const effectivePPS = t.pps * (1 - discountRate);
+                    const sharesPurchasedFromInterest = yearlyInterest / effectivePPS;
+                    cumulativeShares += sharesPurchasedFromInterest;
+                    
+                    const equityValue = cumulativeShares * t.pps;
+                    const totalPortfolioValue = deposit + equityValue;
+                    const cashOnlyValue = deposit + (yearlyInterest * (idx + 1));
+                    
+                    return {
+                        ...t,
+                        yearlyInterest,
+                        normalPPS: t.pps,
+                        effectivePPS,
+                        sharesPurchasedFromInterest,
+                        cumulativeShares,
+                        equityValue,
+                        totalPortfolioValue,
+                        cashOnlyValue,
+                        yieldMultiple: (equityValue / (yearlyInterest * (idx + 1))).toFixed(2),
+                        roi: ((totalPortfolioValue - deposit) / deposit * 100).toFixed(1)
+                    };
+                });
+            }, [deposit, discountRate]);
+
+            const finalMetrics = dashboardData[dashboardData.length - 1];
+
+            const formatCurrency = (val) => 
+                new Intl.NumberFormat('en-GB', { 
+                    style: 'currency', 
+                    currency: 'GBP', 
+                    maximumFractionDigits: 0 
+                }).format(val);
+
+            return (
+                <div className="min-h-screen p-4 sm:p-6 md:p-8">
+                    <div className="max-w-7xl mx-auto">
+                        
+                        {/* Header Section */}
+                        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 mb-8">
+                            <div>
+                                <div className="flex items-center gap-2 mb-2">
+                                    <span className="bg-blue-100 text-blue-700 text-[10px] font-bold px-2 py-0.5 rounded uppercase tracking-wider">
+                                        Annual 20% Discount Strategy
+                                    </span>
+                                </div>
+                                <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 flex items-center gap-2">
+                                    <i data-lucide="calculator" className="text-blue-600"></i>
+                                    Equity Yield Modeller
+                                </h1>
+                                <p className="text-slate-500 text-sm mt-1">
+                                    Modelling {formatCurrency(deposit)} Principal + Annual Discounted Interest Conversion
+                                </p>
+                            </div>
+                            
+                            <div className="grid grid-cols-2 sm:flex items-center gap-3 sm:gap-6 bg-white px-4 py-3 sm:px-6 sm:py-4 rounded-2xl shadow-sm border border-slate-200">
+                                <div className="text-left sm:text-right">
+                                    <p className="text-[10px] font-bold text-slate-400 uppercase">Total Equity (Yr 5)</p>
+                                    <p className="text-lg sm:text-xl font-bold text-emerald-600 truncate">{formatCurrency(finalMetrics.equityValue)}</p>
+                                </div>
+                                <div className="hidden sm:block h-8 w-px bg-slate-100" />
+                                <div className="text-left sm:text-right">
+                                    <p className="text-[10px] font-bold text-slate-400 uppercase">Asset Multiple</p>
+                                    <p className="text-lg sm:text-xl font-bold text-blue-600">{((deposit + finalMetrics.equityValue) / deposit).toFixed(2)}x</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Main Dashboard Grid */}
+                        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 mb-8">
+                            
+                            {/* Controls */}
+                            <div className="lg:col-span-1 space-y-6">
+                                <div className="bg-white p-5 sm:p-6 rounded-2xl shadow-sm border border-slate-200">
+                                    <h3 className="text-sm font-bold text-slate-800 mb-6 flex items-center gap-2 border-b border-slate-50 pb-4">
+                                        <i data-lucide="wallet" className="text-blue-500" size={16}></i>
+                                        Capital Parameters
+                                    </h3>
+                                    
+                                    <div className="space-y-8">
+                                        <div>
+                                            <div className="flex justify-between items-center mb-2">
+                                                <label className="text-xs font-bold text-slate-500 uppercase">
+                                                    Retained Deposit
+                                                </label>
+                                                <span className="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded">£200M - £500M</span>
+                                            </div>
+                                            <input 
+                                                type="range" min="200000000" max="500000000" step="25000000"
+                                                value={deposit}
+                                                onChange={(e) => setDeposit(Number(e.target.value))}
+                                                className="w-full h-2 bg-slate-100 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                                            />
+                                            <div className="mt-3 text-xl font-bold text-slate-900">{formatCurrency(deposit)}</div>
+                                        </div>
+
+                                        <div className="p-4 bg-blue-50/50 rounded-xl border border-blue-100">
+                                            <label className="text-xs font-bold text-blue-600 uppercase block mb-1">
+                                                Annual Interest Yield
+                                            </label>
+                                            <div className="text-xl font-bold text-slate-900">4.0%</div>
+                                            <p className="text-[10px] text-blue-500 mt-1 uppercase font-bold tracking-tighter">
+                                                = {formatCurrency(deposit * interestRate)} / Year
+                                            </p>
+                                        </div>
+
+                                        <div>
+                                            <label className="text-xs font-bold text-slate-500 uppercase block mb-3">
+                                                Ongoing Entry Discount
+                                            </label>
+                                            <div className="flex items-center gap-2">
+                                                {[0, 0.1, 0.2].map(d => (
+                                                    <button 
+                                                        key={d}
+                                                        onClick={() => setDiscountRate(d)}
+                                                        className={`flex-1 py-2.5 text-xs font-bold rounded-xl border transition-all ${discountRate === d ? 'bg-blue-600 text-white border-blue-600 shadow-md' : 'bg-white text-slate-600 border-slate-200 hover:border-blue-300'}`}
+                                                    >{d * 100}%</button>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Stats & Charts */}
+                            <div className="lg:col-span-3 space-y-6">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                                    <StatCard 
+                                        title="Portfolio Total Value" 
+                                        value={formatCurrency(finalMetrics.totalPortfolioValue)}
+                                        subValue={`Principal Protected + Yield Gain`}
+                                        iconName="shield-check"
+                                        iconColorClass="text-blue-500"
+                                    />
+                                    <StatCard 
+                                        title="Discounted Equity Gain" 
+                                        value={formatCurrency(finalMetrics.equityValue)}
+                                        subValue={`From ${formatCurrency(deposit * interestRate * 5)} interest`}
+                                        iconName="trending-up"
+                                        iconColorClass="text-emerald-500"
+                                    />
+                                    <StatCard 
+                                        title="Yield Multiplier" 
+                                        value={`${finalMetrics.yieldMultiple}x`}
+                                        subValue="Alpha over standard interest"
+                                        iconName="arrow-up-right"
+                                        iconColorClass="text-purple-500"
+                                    />
+                                </div>
+
+                                <div className="bg-white p-5 sm:p-6 rounded-2xl shadow-sm border border-slate-200">
+                                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-8 gap-4">
+                                        <h3 className="text-lg font-bold flex items-center gap-2">
+                                            <i data-lucide="dollar-sign" className="text-emerald-500"></i>
+                                            Cumulative Growth Comparison
+                                        </h3>
+                                    </div>
+                                    <div className="h-[300px] sm:h-[400px] w-full">
+                                        <ResponsiveContainer width="100%" height="100%">
+                                            <AreaChart data={dashboardData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                                                <defs>
+                                                    <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
+                                                        <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.1}/>
+                                                        <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
+                                                    </linearGradient>
+                                                </defs>
+                                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                                                <XAxis dataKey="label" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#94a3b8' }} dy={10} />
+                                                <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#94a3b8' }} tickFormatter={(val) => `£${(val/1000000).toFixed(0)}M`} />
+                                                <Tooltip 
+                                                    contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 25px -5px rgba(0,0,0,0.1)' }}
+                                                    formatter={(value) => [formatCurrency(value), '']}
+                                                />
+                                                <Area name="Total Portfolio" dataKey="totalPortfolioValue" stroke="#3b82f6" strokeWidth={3} fill="url(#colorValue)" />
+                                                <Line name="Cumulative Cash Interest" dataKey="cashOnlyValue" stroke="#94a3b8" strokeDasharray="5 5" strokeWidth={2} dot={false} />
+                                            </AreaChart>
+                                        </ResponsiveContainer>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Table */}
+                        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden mb-8">
+                            <div className="p-5 sm:p-6 border-b border-slate-100 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                                <h3 className="font-bold flex items-center gap-2 text-slate-800">
+                                    <i data-lucide="arrow-right-left" className="text-blue-500"></i>
+                                    Adjusted PPS Conversion Detail
+                                </h3>
+                            </div>
+                            <div className="overflow-x-auto scrollbar-hide">
+                                <table className="w-full text-left text-sm min-w-[700px]">
+                                    <thead className="bg-slate-50/50">
+                                        <tr>
+                                            <th className="p-4 font-bold text-slate-400 uppercase text-[10px]">Round</th>
+                                            <th className="p-4 font-bold text-slate-400 uppercase text-[10px]">Interest Deployed</th>
+                                            <th className="p-4 font-bold text-slate-400 uppercase text-[10px]">Normal PPS</th>
+                                            <th className="p-4 font-bold text-slate-400 uppercase text-[10px]">Adjusted PPS</th>
+                                            <th className="p-4 font-bold text-slate-400 uppercase text-[10px]">Shares Added</th>
+                                            <th className="p-4 font-bold text-slate-400 uppercase text-[10px] text-right">Cumulative Equity</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-slate-100">
+                                        {dashboardData.map((row, i) => (
+                                            <tr key={i} className="hover:bg-slate-50/50 transition-colors">
+                                                <td className="p-4 font-semibold text-slate-700">{row.label}</td>
+                                                <td className="p-4 text-slate-600">{formatCurrency(row.yearlyInterest)}</td>
+                                                <td className="p-4 font-mono text-slate-400 text-xs">£{row.normalPPS.toFixed(2)}</td>
+                                                <td className="p-4">
+                                                    <span className="font-bold text-blue-600">£{row.effectivePPS.toFixed(2)}</span>
+                                                </td>
+                                                <td className="p-4 font-medium text-slate-600">{Math.round(row.sharesPurchasedFromInterest).toLocaleString()}</td>
+                                                <td className="p-4 text-right font-bold text-emerald-600">{formatCurrency(row.equityValue)}</td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
