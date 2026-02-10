@@ -9,10 +9,12 @@
     <!-- React and ReactDOM -->
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <!-- Prop-Types (Required by Recharts UMD) -->
+    <script src="https://unpkg.com/prop-types@15.8.1/prop-types.min.js"></script>
+    <!-- Recharts -->
+    <script src="https://unpkg.com/recharts@2.12.7/umd/Recharts.js"></script>
     <!-- Babel for JSX -->
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    <!-- Recharts -->
-    <script src="https://unpkg.com/recharts/umd/Recharts.js"></script>
     <!-- Lucide Icons -->
     <script src="https://unpkg.com/lucide@latest"></script>
     <style>
@@ -20,6 +22,24 @@
         body { font-family: 'Inter', sans-serif; }
         .scrollbar-hide::-webkit-scrollbar { display: none; }
         .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+        
+        /* Custom range slider styling */
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 18px;
+            width: 18px;
+            border-radius: 50%;
+            background: #2563eb;
+            cursor: pointer;
+            box-shadow: 0 0 2px rgba(0,0,0,0.2);
+            margin-top: -6px;
+        }
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%;
+            height: 6px;
+            background: #e2e8f0;
+            border-radius: 3px;
+        }
     </style>
 </head>
 <body class="bg-slate-50">
@@ -30,32 +50,33 @@
         const { 
             AreaChart, Area, LineChart, Line, XAxis, YAxis, 
             CartesianGrid, Tooltip, Legend, ResponsiveContainer 
-        } = Recharts;
+        } = window.Recharts;
 
-        // Custom Icon Component to handle Lucide in CDN
-        const Icon = ({ name, size = 20, className = "" }) => {
-            const [iconSvg, setIconSvg] = useState("");
-            
-            useEffect(() => {
-                if (window.lucide) {
-                    const icon = window.lucide.icons[name];
-                    if (icon) {
-                        const svg = window.lucide.createIcons({
-                            icons: { [name]: icon },
-                            attrs: { stroke: "currentColor", "stroke-width": 2, size: size }
-                        });
-                    }
+        // Helper function to calculate IRR using Newton-Raphson
+        const calculateIRR = (cashFlows, guess = 0.1) => {
+            const maxIterations = 100;
+            const precision = 0.0001;
+            let rate = guess;
+
+            for (let i = 0; i < maxIterations; i++) {
+                let npv = 0;
+                let dNpv = 0;
+                for (let j = 0; j < cashFlows.length; j++) {
+                    npv += cashFlows[j] / Math.pow(1 + rate, j);
+                    dNpv -= j * cashFlows[j] / Math.pow(1 + rate, j + 1);
                 }
-            }, [name, size]);
-
-            return <i data-lucide={name} className={className} style={{ width: size, height: size }}></i>;
+                const newRate = rate - npv / dNpv;
+                if (Math.abs(newRate - rate) < precision) return newRate;
+                rate = newRate;
+            }
+            return rate;
         };
 
         const StatCard = ({ title, value, subValue, iconName, iconColorClass }) => (
             <div className="bg-white p-5 sm:p-6 rounded-2xl shadow-sm border border-slate-200 hover:border-blue-200 transition-colors">
                 <div className="flex justify-between items-start mb-4">
                     <div className={`p-2.5 bg-slate-50 rounded-xl ${iconColorClass}`}>
-                        <i data-lucide={iconName} size={20}></i>
+                        <i data-lucide={iconName} className="w-5 h-5"></i>
                     </div>
                     <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{title}</span>
                 </div>
@@ -70,8 +91,10 @@
             const [discountRate, setDiscountRate] = useState(0.20);
 
             useEffect(() => {
-                if (window.lucide) window.lucide.createIcons();
-            }, [deposit, discountRate]);
+                if (window.lucide) {
+                    window.lucide.createIcons();
+                }
+            });
 
             const baseTranches = [
                 { year: 1, label: 'Balance 1', valuation: 272002132, pps: 58.40 },
@@ -93,6 +116,15 @@
                     const equityValue = cumulativeShares * t.pps;
                     const totalPortfolioValue = deposit + equityValue;
                     const cashOnlyValue = deposit + (yearlyInterest * (idx + 1));
+
+                    // IRR Calculation for the interest conversion strategy
+                    // CFs: [-Interest, -Interest, ..., +EquityValue]
+                    const cfs = [];
+                    for (let i = 0; i <= idx; i++) {
+                        cfs.push(-yearlyInterest);
+                    }
+                    cfs[cfs.length - 1] = equityValue - yearlyInterest; // Add terminal value to the last outflow
+                    const irr = calculateIRR(cfs);
                     
                     return {
                         ...t,
@@ -104,6 +136,7 @@
                         equityValue,
                         totalPortfolioValue,
                         cashOnlyValue,
+                        irr: (irr * 100).toFixed(1),
                         yieldMultiple: (equityValue / (yearlyInterest * (idx + 1))).toFixed(2),
                         roi: ((totalPortfolioValue - deposit) / deposit * 100).toFixed(1)
                     };
@@ -128,11 +161,11 @@
                             <div>
                                 <div className="flex items-center gap-2 mb-2">
                                     <span className="bg-blue-100 text-blue-700 text-[10px] font-bold px-2 py-0.5 rounded uppercase tracking-wider">
-                                        Annual 20% Discount Strategy
+                                        Annual {(discountRate * 100).toFixed(0)}% Discount Strategy
                                     </span>
                                 </div>
                                 <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 flex items-center gap-2">
-                                    <i data-lucide="calculator" className="text-blue-600"></i>
+                                    <i data-lucide="calculator" className="text-blue-600 w-8 h-8"></i>
                                     Equity Yield Modeller
                                 </h1>
                                 <p className="text-slate-500 text-sm mt-1">
@@ -160,39 +193,39 @@
                             <div className="lg:col-span-1 space-y-6">
                                 <div className="bg-white p-5 sm:p-6 rounded-2xl shadow-sm border border-slate-200">
                                     <h3 className="text-sm font-bold text-slate-800 mb-6 flex items-center gap-2 border-b border-slate-50 pb-4">
-                                        <i data-lucide="wallet" className="text-blue-500" size={16}></i>
+                                        <i data-lucide="wallet" className="text-blue-500 w-4 h-4"></i>
                                         Capital Parameters
                                     </h3>
                                     
                                     <div className="space-y-8">
                                         <div>
                                             <div className="flex justify-between items-center mb-2">
-                                                <label className="text-xs font-bold text-slate-500 uppercase">
+                                                <label className="text-xs font-bold text-slate-500 uppercase text-[10px]">
                                                     Retained Deposit
                                                 </label>
-                                                <span className="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded">£200M - £500M</span>
+                                                <span className="text-[9px] font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded">£200M - £500M</span>
                                             </div>
                                             <input 
                                                 type="range" min="200000000" max="500000000" step="25000000"
                                                 value={deposit}
                                                 onChange={(e) => setDeposit(Number(e.target.value))}
-                                                className="w-full h-2 bg-slate-100 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                                                className="w-full h-1.5 bg-slate-100 rounded-lg appearance-none cursor-pointer accent-blue-600"
                                             />
                                             <div className="mt-3 text-xl font-bold text-slate-900">{formatCurrency(deposit)}</div>
                                         </div>
 
                                         <div className="p-4 bg-blue-50/50 rounded-xl border border-blue-100">
-                                            <label className="text-xs font-bold text-blue-600 uppercase block mb-1">
+                                            <label className="text-xs font-bold text-blue-600 uppercase block mb-1 text-[10px]">
                                                 Annual Interest Yield
                                             </label>
                                             <div className="text-xl font-bold text-slate-900">4.0%</div>
-                                            <p className="text-[10px] text-blue-500 mt-1 uppercase font-bold tracking-tighter">
+                                            <p className="text-[9px] text-blue-500 mt-1 uppercase font-bold tracking-tighter">
                                                 = {formatCurrency(deposit * interestRate)} / Year
                                             </p>
                                         </div>
 
                                         <div>
-                                            <label className="text-xs font-bold text-slate-500 uppercase block mb-3">
+                                            <label className="text-xs font-bold text-slate-500 uppercase block mb-3 text-[10px]">
                                                 Ongoing Entry Discount
                                             </label>
                                             <div className="flex items-center gap-2">
@@ -200,7 +233,7 @@
                                                     <button 
                                                         key={d}
                                                         onClick={() => setDiscountRate(d)}
-                                                        className={`flex-1 py-2.5 text-xs font-bold rounded-xl border transition-all ${discountRate === d ? 'bg-blue-600 text-white border-blue-600 shadow-md' : 'bg-white text-slate-600 border-slate-200 hover:border-blue-300'}`}
+                                                        className={`flex-1 py-2 text-xs font-bold rounded-xl border transition-all ${discountRate === d ? 'bg-blue-600 text-white border-blue-600 shadow-md' : 'bg-white text-slate-600 border-slate-200 hover:border-blue-300'}`}
                                                     >{d * 100}%</button>
                                                 ))}
                                             </div>
@@ -227,9 +260,9 @@
                                         iconColorClass="text-emerald-500"
                                     />
                                     <StatCard 
-                                        title="Yield Multiplier" 
-                                        value={`${finalMetrics.yieldMultiple}x`}
-                                        subValue="Alpha over standard interest"
+                                        title="Average Annual IRR" 
+                                        value={`${finalMetrics.irr}%`}
+                                        subValue="Compound annual growth rate"
                                         iconName="arrow-up-right"
                                         iconColorClass="text-purple-500"
                                     />
@@ -238,7 +271,7 @@
                                 <div className="bg-white p-5 sm:p-6 rounded-2xl shadow-sm border border-slate-200">
                                     <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-8 gap-4">
                                         <h3 className="text-lg font-bold flex items-center gap-2">
-                                            <i data-lucide="dollar-sign" className="text-emerald-500"></i>
+                                            <i data-lucide="dollar-sign" className="text-emerald-500 w-5 h-5"></i>
                                             Cumulative Growth Comparison
                                         </h3>
                                     </div>
@@ -271,7 +304,7 @@
                         <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden mb-8">
                             <div className="p-5 sm:p-6 border-b border-slate-100 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                                 <h3 className="font-bold flex items-center gap-2 text-slate-800">
-                                    <i data-lucide="arrow-right-left" className="text-blue-500"></i>
+                                    <i data-lucide="arrow-right-left" className="text-blue-500 w-5 h-5"></i>
                                     Adjusted PPS Conversion Detail
                                 </h3>
                             </div>
@@ -284,6 +317,7 @@
                                             <th className="p-4 font-bold text-slate-400 uppercase text-[10px]">Normal PPS</th>
                                             <th className="p-4 font-bold text-slate-400 uppercase text-[10px]">Adjusted PPS</th>
                                             <th className="p-4 font-bold text-slate-400 uppercase text-[10px]">Shares Added</th>
+                                            <th className="p-4 font-bold text-slate-400 uppercase text-[10px] text-right">IRR (p.a.)</th>
                                             <th className="p-4 font-bold text-slate-400 uppercase text-[10px] text-right">Cumulative Equity</th>
                                         </tr>
                                     </thead>
@@ -297,6 +331,11 @@
                                                     <span className="font-bold text-blue-600">£{row.effectivePPS.toFixed(2)}</span>
                                                 </td>
                                                 <td className="p-4 font-medium text-slate-600">{Math.round(row.sharesPurchasedFromInterest).toLocaleString()}</td>
+                                                <td className="p-4 text-right">
+                                                    <span className="bg-purple-50 text-purple-700 px-2 py-1 rounded-lg font-bold text-[11px]">
+                                                        {row.irr}%
+                                                    </span>
+                                                </td>
                                                 <td className="p-4 text-right font-bold text-emerald-600">{formatCurrency(row.equityValue)}</td>
                                             </tr>
                                         ))}
